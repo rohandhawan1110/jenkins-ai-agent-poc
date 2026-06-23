@@ -1,105 +1,89 @@
-import os
 import requests
+import json
+import ollama
 from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
-import ollama
-from dotenv import load_dotenv
-from jenkins_service import trigger_job
-import json
+import re
 
-load_dotenv()
+from config import (
+    CONFLUENCE_BASE_URL,
+    CONFLUENCE_USERNAME,
+    CONFLUENCE_API_TOKEN,
+    CONFLUENCE_PAGE_ID
+)
 
-# ---------------- CONFIG ----------------
-BASE_URL = os.getenv("CONFLUENCE_URL")
-USERNAME = os.getenv("CONFLUENCE_USERNAME")
-API_TOKEN = os.getenv("CONFLUENCE_API_TOKEN")
-PAGE_ID = os.getenv("CONFLUENCE_PAGE_ID")
-
-
-# ---------------- STEP 1: FETCH CONFLUENCE ----------------
+# ---------------- FETCH ----------------
 def fetch_confluence():
-    url = f"{BASE_URL}/rest/api/content/{PAGE_ID}?expand=body.storage"
+    url = f"{CONFLUENCE_BASE_URL}/rest/api/content/{CONFLUENCE_PAGE_ID}?expand=body.storage"
 
     response = requests.get(
         url,
-        auth=HTTPBasicAuth(USERNAME, API_TOKEN)
+        auth=HTTPBasicAuth(CONFLUENCE_USERNAME, CONFLUENCE_API_TOKEN)
     )
 
-    data = response.json()
-
-    html = data["body"]["storage"]["value"]
-    return html
+    return response.json()["body"]["storage"]["value"]
 
 
-# ---------------- STEP 2: CLEAN HTML ----------------
+# ---------------- CLEAN ----------------
 def clean_html(html):
     soup = BeautifulSoup(html, "html.parser")
     return soup.get_text("\n")
 
 
-# ---------------- STEP 3: LLM EXTRACTION ----------------
+# ---------------- LLM ----------------
 def extract_with_llm(text):
+
     prompt = f"""
-You are a strict JSON generator for automation.
+You are a STRICT JSON generator.
 
 RULES:
-- Return ONLY valid JSON
-- NO explanations
+- Output ONLY valid JSON
+- NO explanation
 - NO markdown
-- NO ``` backticks
-- NO extra text
+- NO text before or after JSON
 
-TEXT:
-{text}
-
-OUTPUT FORMAT:
+Return format:
 {{
   "job_name": "",
   "environment": "",
   "branch": ""
 }}
+
+INPUT:
+{text}
 """
 
     response = ollama.chat(
         model="llama3",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+        messages=[{"role": "user", "content": prompt}]
     )
 
     return response["message"]["content"]
 
 
-# ---------------- MAIN PIPELINE ----------------
-if __name__ == "__main__":
+# ---------------- PIPELINE ----------------
+def process_confluence_page():
 
-    print("Fetching Confluence page...")
     html = fetch_confluence()
 
-    print("\nCleaning HTML...")
     text = clean_html(html)
-    print("Clean text: ", text)
 
-    print("\nSending to LLM...")
-    result = extract_with_llm(text)
+    llm_output = extract_with_llm(text)
 
-    print("\nFINAL OUTPUT:")
-    print("\nRaw LLM Output:\n", result)
+    print("\nRAW LLM OUTPUT:\n", llm_output)
 
     try:
-        parsed = json.loads(result)
+        return json.loads(llm_output)
     except:
-        print("❌ Invalid JSON from LLM")
-        parsed = None
+        pass
 
+    # fallback: extract JSON block
+    match = re.search(r"\{.*\}", llm_output, re.DOTALL)
 
-    if parsed:
-        print("\nTriggering Jenkins...")
+    if match:
+        try:
+            return json.loads(match.group())
+        except:
+            return None
 
-        trigger_job(
-            parsed["job_name"],
-            {
-                "environment": parsed["environment"],
-                "branch": parsed["branch"]
-            }
-        )
+    return None

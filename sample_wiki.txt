@@ -1,3 +1,0 @@
-Jenkins Job: CustomerPortal_Build
-Environment: UAT
-Branch: main
