@@ -6,9 +6,10 @@ def run_cli():
 
     print("\n🚀 AI Jenkins Agent CLI\n")
 
-    input("\nPress Enter to process Confluence page...")
+    confluence_url = input("\nEnter Confluence URL: ")
+    page_id = confluence_url.split("/pages/")[1].split("/")[0]
 
-    data = process_confluence_page()
+    data = process_confluence_page(page_id)
 
     if not data:
         print("❌ Failed to extract data from LLM")

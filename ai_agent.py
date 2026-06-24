@@ -13,8 +13,8 @@ from config import (
 )
 
 # ---------------- FETCH ----------------
-def fetch_confluence():
-    url = f"{CONFLUENCE_BASE_URL}/rest/api/content/{CONFLUENCE_PAGE_ID}?expand=body.storage"
+def fetch_confluence(page_id):
+    url = f"{CONFLUENCE_BASE_URL}/rest/api/content/{page_id}?expand=body.storage"
 
     response = requests.get(
         url,
@@ -65,9 +65,9 @@ INPUT:
 
 
 # ---------------- PIPELINE ----------------
-def process_confluence_page():
+def process_confluence_page(page_id):
 
-    html = fetch_confluence()
+    html = fetch_confluence(page_id)
 
     text = clean_html(html)
 
