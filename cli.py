@@ -22,12 +22,8 @@ def run_cli():
     print(f"\n⚙️ Triggering Jenkins Job: {job_name}\n")
 
     trigger_job(
-        job_name,
-        {
-            "job_name": job_name,
-            "environment": data["environment"],
-            "branch": data["branch"]
-        }
+        data["job_name"],
+        data["parameters"]
     )
 
 

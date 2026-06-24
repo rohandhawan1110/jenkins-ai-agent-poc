@@ -41,12 +41,15 @@ RULES:
 - NO explanation
 - NO markdown
 - NO text before or after JSON
+- Extract ALL deployment parameters except Jenkins Job.
+- Place them inside the parameters object.
 
-Return format:
+OUTPUT FORMAT:
 {{
   "job_name": "",
-  "environment": "",
-  "branch": ""
+  "parameters": {{
+    "key": "value"
+  }}
 }}
 
 INPUT:
